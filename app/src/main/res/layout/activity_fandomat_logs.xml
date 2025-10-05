@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Заголовок -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Логи Fandomat"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#2196F3"
+        android:gravity="center"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Панель управления -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
+
+        <Button
+            android:id="@+id/backButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="← Назад" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1" />
+
+        <Button
+            android:id="@+id/refreshLogsButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🔄 Обновить" />
+
+        <Button
+            android:id="@+id/clearLogsButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🗑️ Очистить"
+            android:layout_marginStart="8dp" />
+
+    </LinearLayout>
+
+    <!-- Статус -->
+    <TextView
+        android:id="@+id/logsStatusText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="📋 Загрузка логов Fandomat..."
+        android:textSize="14sp"
+        android:layout_marginBottom="8dp"
+        android:background="#E3F2FD"
+        android:padding="8dp"
+        android:textColor="#1976D2" />
+
+    <!-- Список логов -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/fandomatLogsRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#FAFAFA" />
+
+</LinearLayout>

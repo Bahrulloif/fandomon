@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QoS Level options -->
+    <string-array name="qos_entries">
+        <item>0 - At most once</item>
+        <item>1 - At least once</item>
+        <item>2 - Exactly once</item>
+    </string-array>
+
+    <string-array name="qos_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+</resources>

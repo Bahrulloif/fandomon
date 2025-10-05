@@ -1,0 +1,342 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Заголовок -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="⚙️ Настройки Fandomon"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#2196F3"
+            android:gravity="center"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Кнопки управления -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/backButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="← Назад" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+
+            <Button
+                android:id="@+id/saveButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="💾 Сохранить"
+                android:backgroundTint="#4CAF50" />
+
+        </LinearLayout>
+
+        <!-- Статус соединения -->
+        <TextView
+            android:id="@+id/connectionStatusText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="ℹ️ Статус соединения"
+            android:textSize="14sp"
+            android:layout_marginBottom="16dp"
+            android:background="#E3F2FD"
+            android:padding="8dp"
+            android:textColor="#1976D2" />
+
+        <!-- Сетевые настройки -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@android:color/white"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🌐 Сетевые настройки"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="URL REST API сервера:"
+                android:textSize="14sp"
+                android:layout_marginBottom="4dp" />
+
+            <EditText
+                android:id="@+id/serverUrlEdit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="https://your-server.com/api"
+                android:inputType="textUri"
+                android:layout_marginBottom="8dp" />
+
+            <Button
+                android:id="@+id/testRestButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🔍 Тест REST"
+                android:layout_marginBottom="16dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="MQTT брокер:"
+                android:textSize="14sp"
+                android:layout_marginBottom="4dp" />
+
+            <EditText
+                android:id="@+id/mqttBrokerEdit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="tcp://broker.hivemq.com:1883"
+                android:inputType="textUri"
+                android:layout_marginBottom="8dp" />
+
+            <Button
+                android:id="@+id/testMqttButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🔍 Тест MQTT" />
+
+        </LinearLayout>
+
+        <!-- Настройки мониторинга -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@android:color/white"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📊 Настройки мониторинга"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Интервал мониторинга (сек):"
+                    android:textSize="14sp" />
+
+                <EditText
+                    android:id="@+id/monitoringIntervalEdit"
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:hint="30"
+                    android:inputType="number"
+                    android:gravity="center" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Интервал отправки статуса (сек):"
+                    android:textSize="14sp" />
+
+                <EditText
+                    android:id="@+id/statusSendIntervalEdit"
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:hint="300"
+                    android:inputType="number"
+                    android:gravity="center" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Хранить логи (дней):"
+                    android:textSize="14sp" />
+
+                <EditText
+                    android:id="@+id/logRetentionEdit"
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:hint="7"
+                    android:inputType="number"
+                    android:gravity="center" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Событий в пакете:"
+                    android:textSize="14sp" />
+
+                <EditText
+                    android:id="@+id/maxEventsPerBatchEdit"
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:hint="100"
+                    android:inputType="number"
+                    android:gravity="center" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Время неактивности для перезапуска (мин):"
+                    android:textSize="14sp" />
+
+                <EditText
+                    android:id="@+id/inactivityTimeoutEdit"
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:hint="5"
+                    android:inputType="number"
+                    android:gravity="center" />
+
+            </LinearLayout>
+
+            <Switch
+                android:id="@+id/autoRestartSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🔄 Автоматический перезапуск Fandomat"
+                android:textSize="16sp" />
+
+        </LinearLayout>
+
+        <!-- Настройки устройства -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@android:color/white"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📱 Настройки устройства"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="ID устройства:"
+                android:textSize="14sp"
+                android:layout_marginBottom="4dp" />
+
+            <EditText
+                android:id="@+id/deviceIdEdit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Автоматически (или введите свой)"
+                android:inputType="text"
+                android:layout_marginBottom="12dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Имя устройства:"
+                android:textSize="14sp"
+                android:layout_marginBottom="4dp" />
+
+            <EditText
+                android:id="@+id/deviceNameEdit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Планшет-01"
+                android:inputType="text" />
+
+        </LinearLayout>
+
+        <!-- Дополнительные действия -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/resetSettingsButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🔄 Сброс"
+                android:layout_marginEnd="4dp"
+                android:backgroundTint="#FF9800" />
+
+            <Button
+                android:id="@+id/exportSettingsButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="📤 Экспорт"
+                android:layout_marginStart="4dp"
+                android:backgroundTint="#9C27B0" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</ScrollView>

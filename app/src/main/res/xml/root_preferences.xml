@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+        android:title="Идентификация устройства"
+        android:key="device_category">
+
+        <EditTextPreference
+            android:key="device_id"
+            android:title="ID устройства"
+            android:summary="Уникальный идентификатор устройства (например: tablet_01)"
+            android:defaultValue="tablet_unknown" />
+
+        <EditTextPreference
+            android:key="device_name"
+            android:title="Название устройства"
+            android:summary="Понятное название устройства (например: Планшет Касса №1)"
+            android:defaultValue="Неизвестный планшет" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="Мониторинг"
+        android:key="monitoring_category">
+
+        <EditTextPreference
+            android:key="check_interval"
+            android:title="Интервал проверки"
+            android:summary="Интервал проверки Fandomat в миллисекундах"
+            android:defaultValue="30000" />
+
+        <EditTextPreference
+            android:key="log_check_interval"
+            android:title="Интервал проверки логов"
+            android:summary="Интервал проверки логов в миллисекундах"
+            android:defaultValue="10000" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="MQTT настройки"
+        android:key="mqtt_category">
+
+        <SwitchPreferenceCompat
+            android:key="enable_mqtt"
+            android:title="Включить MQTT"
+            android:summary="Отправка данных через MQTT"
+            android:defaultValue="true" />
+
+        <EditTextPreference
+            android:key="mqtt_broker_url"
+            android:title="MQTT Broker URL"
+            android:summary="Адрес MQTT брокера"
+            android:defaultValue="tcp://broker.hivemq.com:1883"
+            android:dependency="enable_mqtt" />
+
+        <EditTextPreference
+            android:key="mqtt_client_id"
+            android:title="Client ID"
+            android:summary="Уникальный идентификатор клиента"
+            android:defaultValue="fandomon_test"
+            android:dependency="enable_mqtt" />
+
+        <EditTextPreference
+            android:key="mqtt_username"
+            android:title="MQTT Username"
+            android:summary="Имя пользователя для MQTT (оставить пустым для публичного брокера)"
+            android:dependency="enable_mqtt" />
+
+        <EditTextPreference
+            android:key="mqtt_password"
+            android:title="MQTT Password"
+            android:summary="Пароль для MQTT (оставить пустым для публичного брокера)"
+            android:inputType="textPassword"
+            android:dependency="enable_mqtt" />
+
+        <EditTextPreference
+            android:key="mqtt_topic_events"
+            android:title="Topic Events"
+            android:summary="Топик для отправки событий"
+            android:defaultValue="fandomon/test/events"
+            android:dependency="enable_mqtt" />
+
+        <EditTextPreference
+            android:key="mqtt_topic_status"
+            android:title="Topic Status"
+            android:summary="Топик для отправки статуса"
+            android:defaultValue="fandomon/test/status"
+            android:dependency="enable_mqtt" />
+
+        <EditTextPreference
+            android:key="mqtt_topic_commands"
+            android:title="Topic Commands"
+            android:summary="Топик для получения команд"
+            android:defaultValue="fandomon/test/commands"
+            android:dependency="enable_mqtt" />
+
+        <ListPreference
+            android:key="mqtt_qos"
+            android:title="QoS Level"
+            android:summary="Уровень качества сервиса"
+            android:defaultValue="1"
+            android:entries="@array/qos_entries"
+            android:entryValues="@array/qos_values"
+            android:dependency="enable_mqtt" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="REST API настройки"
+        android:key="rest_category">
+
+        <SwitchPreferenceCompat
+            android:key="enable_rest"
+            android:title="Включить REST API"
+            android:summary="Отправка данных через REST API"
+            android:defaultValue="false" />
+
+        <EditTextPreference
+            android:key="rest_base_url"
+            android:title="REST API URL"
+            android:summary="Базовый URL для REST API"
+            android:defaultValue="https://your-api-server.com/api"
+            android:dependency="enable_rest" />
+
+        <EditTextPreference
+            android:key="rest_api_key"
+            android:title="REST API Key"
+            android:summary="API ключ для аутентификации"
+            android:dependency="enable_rest" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="Удаленное управление"
+        android:key="remote_category">
+
+        <SwitchPreferenceCompat
+            android:key="enable_remote_control"
+            android:title="Удаленное управление"
+            android:summary="Разрешить выполнение удаленных команд"
+            android:defaultValue="true" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="Хранение данных"
+        android:key="storage_category">
+
+        <EditTextPreference
+            android:key="max_events_to_store"
+            android:title="Максимум событий"
+            android:summary="Максимальное количество событий в базе"
+            android:defaultValue="10000" />
+
+        <EditTextPreference
+            android:key="event_retention_days"
+            android:title="Срок хранения"
+            android:summary="Количество дней для хранения событий"
+            android:defaultValue="30" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>
