@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
+import kotlinx.coroutines.delay
 import java.util.*
 
 class FandomatChecker(private val context: Context) {
@@ -220,8 +221,9 @@ class FandomatChecker(private val context: Context) {
 
     /**
      * Пытается запустить приложение Fandomat
+     * Исправлено: убран blocking Thread.sleep
      */
-    fun startFandomat(): Boolean {
+    suspend fun startFandomat(): Boolean {
         val packageName = findFandomatPackage()
         if (packageName == null) {
             Log.e(TAG, "Fandomat не найден для запуска")
@@ -238,8 +240,8 @@ class FandomatChecker(private val context: Context) {
                 context.startActivity(launchIntent)
                 Log.i(TAG, "Запущено приложение Fandomat ($packageName)")
 
-                // Ждем немного и проверяем, запустилось ли
-                Thread.sleep(3000)
+                // Используем delay вместо Thread.sleep
+                delay(3000)
                 return isFandomatRunning()
 
             } else {
@@ -254,14 +256,15 @@ class FandomatChecker(private val context: Context) {
 
     /**
      * Пытается перезапустить приложение Fandomat
+     * Исправлено: убран blocking Thread.sleep
      */
-    fun restartFandomat(): Boolean {
+    suspend fun restartFandomat(): Boolean {
         return try {
             // Сначала пытаемся "убить" процесс (требует разрешений)
             killFandomat()
 
-            // Ждем немного
-            Thread.sleep(2000)
+            // Используем delay вместо Thread.sleep
+            delay(2000)
 
             // Запускаем заново
             startFandomat()

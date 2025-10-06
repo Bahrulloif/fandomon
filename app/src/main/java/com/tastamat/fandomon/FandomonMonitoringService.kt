@@ -1,64 +1,44 @@
 package com.tastamat.fandomon
 
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.app.usage.UsageStatsManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
-import android.os.BatteryManager
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.tastamat.fandomon.data.DatabaseHelper
 import com.tastamat.fandomon.data.EventType
-import com.tastamat.fandomon.network.NetworkSender
-import com.tastamat.fandomon.utils.FandomatChecker
-import com.tastamat.fandomon.utils.LogMonitor
+import com.tastamat.fandomon.utils.AlarmScheduler
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.TimeUnit
 
+/**
+ * Облегченный сервис мониторинга с использованием AlarmManager
+ * Не выполняет постоянные проверки, а только управляет алярмами и мониторит сеть
+ */
 class FandomonMonitoringService : Service() {
 
     companion object {
         private const val TAG = "FandomonService"
         private const val NOTIFICATION_ID = 1001
         private const val CHANNEL_ID = "FandomonMonitoring"
-        private const val FANDOMAT_PACKAGE = "com.tastamat.fandomat"
-        private const val CHECK_INTERVAL = 30L // seconds
-        private const val STATUS_SEND_INTERVAL = 300L // 5 minutes
     }
 
     private lateinit var databaseHelper: DatabaseHelper
-    private lateinit var networkSender: NetworkSender
-    private lateinit var fandomatChecker: FandomatChecker
-    private lateinit var logMonitor: LogMonitor
-
-    private lateinit var scheduler: ScheduledExecutorService
+    private lateinit var alarmScheduler: AlarmScheduler
     private lateinit var handler: Handler
-    private lateinit var powerManager: PowerManager
-    private lateinit var wakeLock: PowerManager.WakeLock
 
     private var isNetworkConnected = false
-    private var lastFandomatStatus = false
-    private var lastLogCheck = System.currentTimeMillis()
 
     // Network callback для мониторинга сети
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
@@ -81,24 +61,18 @@ class FandomonMonitoringService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "Сервис мониторинга создан")
+        Log.d(TAG, "Облегченный сервис мониторинга создан")
 
         initializeComponents()
         createNotificationChannel()
         registerNetworkCallback()
-        startMonitoring()
+        startAlarmBasedMonitoring()
     }
 
     private fun initializeComponents() {
         databaseHelper = DatabaseHelper(this)
-        networkSender = NetworkSender(this)
-        fandomatChecker = FandomatChecker(this)
-        logMonitor = LogMonitor(this)
-
-        scheduler = Executors.newScheduledThreadPool(3)
+        alarmScheduler = AlarmScheduler(this)
         handler = Handler(Looper.getMainLooper())
-        powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Fandomon::MonitoringWakeLock")
 
         // Проверяем начальное состояние сети
         checkNetworkStatus()
@@ -133,90 +107,21 @@ class FandomonMonitoringService : Service() {
         }
     }
 
-    private fun startMonitoring() {
-        if (!wakeLock.isHeld) {
-            wakeLock.acquire(10*60*1000L) // 10 минут
+    /**
+     * Запускает мониторинг через AlarmManager вместо постоянных циклов
+     * Значительно снижает нагрузку на CPU
+     */
+    private fun startAlarmBasedMonitoring() {
+        // Проверяем, может ли приложение использовать точные алярмы
+        if (!alarmScheduler.canScheduleExactAlarms()) {
+            Log.w(TAG, "Приложение не может планировать точные алярмы (Android 12+)")
         }
 
-        // Основной цикл проверки Fandomat
-        scheduler.scheduleWithFixedDelay({
-            try {
-                Log.d(TAG, "Старт мониторинга")
-                checkFandomatStatus()
-                checkFandomatLogs()
-                checkPowerStatus()
-            } catch (e: Exception) {
-                Log.e(TAG, "Ошибка в цикле мониторинга", e)
-            }
-        }, 0, CHECK_INTERVAL, TimeUnit.SECONDS)
+        // Запускаем все периодические задачи через AlarmManager
+        alarmScheduler.scheduleAllMonitoring()
 
-        // Отправка статуса на сервер
-        scheduler.scheduleWithFixedDelay({
-            try {
-                sendStatusToServer()
-                sendPendingEvents()
-            } catch (e: Exception) {
-                Log.e(TAG, "Ошибка отправки статуса", e)
-            }
-        }, STATUS_SEND_INTERVAL, STATUS_SEND_INTERVAL, TimeUnit.SECONDS)
-
-        logEvent(EventType.FANDOMON_STARTED, "Сервис мониторинга запущен")
-    }
-
-    private fun checkFandomatStatus() {
-        val isRunning = fandomatChecker.isFandomatRunning()
-
-        if (isRunning != lastFandomatStatus) {
-            if (!isRunning) {
-                logEvent(EventType.FANDOMAT_CRASHED, "Fandomat приложение не запущено")
-
-                // Пытаемся перезапустить Fandomat
-                if (fandomatChecker.startFandomat()) {
-                    logEvent(EventType.FANDOMAT_RESTARTED, "Fandomat перезапущен автоматически")
-                } else {
-                    logEvent(EventType.FANDOMAT_START_FAILED, "Не удалось запустить Fandomat")
-                }
-            } else {
-                logEvent(EventType.FANDOMAT_RESTORED, "Fandomat приложение запущено")
-            }
-
-            lastFandomatStatus = isRunning
-        }
-    }
-
-    private fun checkFandomatLogs() {
-        val currentTime = System.currentTimeMillis()
-        val logsSince = logMonitor.getLogsSince(FANDOMAT_PACKAGE, lastLogCheck)
-
-        Log.d(TAG, "checkFandomatLogs: " + logsSince)
-
-        if (logsSince.isEmpty() && (currentTime - lastLogCheck) > TimeUnit.MINUTES.toMillis(5)) {
-            // Если логов не было более 5 минут
-            logEvent(EventType.LOGS_MISSING, "Логи Fandomat отсутствуют более 5 минут")
-        }
-
-        // Проверяем на ошибки в логах
-        logsSince.forEach { logEntry ->
-            if (logEntry.contains("FATAL", true) || logEntry.contains("ERROR", true)) {
-                logEvent(EventType.FANDOMAT_ERROR, "Ошибка в логах Fandomat: $logEntry")
-            }
-        }
-
-        lastLogCheck = currentTime
-    }
-
-    private fun checkPowerStatus() {
-        val batteryManager = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-        val isCharging = batteryManager.isCharging
-        val batteryLevel = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-
-        // Проверяем уровень батареи
-        if (batteryLevel < 15 && !isCharging) {
-            logEvent(EventType.POWER_LOW, "Низкий заряд батареи: $batteryLevel%")
-        }
-
-        // Логируем статус питания в базу для отслеживания
-        databaseHelper.updatePowerStatus(isCharging, batteryLevel)
+        logEvent(EventType.FANDOMON_STARTED, "Сервис мониторинга запущен (AlarmManager режим)")
+        Log.i(TAG, "Мониторинг через AlarmManager активирован - низкая нагрузка на CPU")
     }
 
     private fun checkNetworkStatus() {
@@ -227,28 +132,6 @@ class FandomonMonitoringService : Service() {
         isNetworkConnected = networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
     }
 
-    private fun sendStatusToServer() {
-        val status = mapOf(
-            "timestamp" to System.currentTimeMillis(),
-            "fandomat_running" to lastFandomatStatus,
-            "network_connected" to isNetworkConnected,
-            "fandomon_version" to BuildConfig.VERSION_NAME,
-            "device_id" to android.provider.Settings.Secure.getString(contentResolver, android.provider.Settings.Secure.ANDROID_ID)
-        )
-
-        networkSender.sendStatus(status)
-    }
-
-    private fun sendPendingEvents() {
-        val pendingEvents = databaseHelper.getPendingEvents()
-        pendingEvents.forEach { event ->
-            networkSender.sendEvent(event) { success ->
-                if (success) {
-                    databaseHelper.markEventAsSent(event.id)
-                }
-            }
-        }
-    }
 
     private fun logEvent(type: EventType, details: String) {
         Log.i(TAG, "$type: $details")
@@ -269,10 +152,10 @@ class FandomonMonitoringService : Service() {
         val currentTime = timeFormat.format(Date())
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Fandomon Мониторинг")
-            .setContentText("Активен с $currentTime")
+            .setContentTitle("Fandomon Мониторинг (Режим энергосбережения)")
+            .setContentText("AlarmManager активен")
             .setStyle(NotificationCompat.BigTextStyle()
-                .bigText("Статус: ${if (lastFandomatStatus) "✓" else "✗"} Fandomat, ${if (isNetworkConnected) "✓" else "✗"} Сеть\nПоследнее: $lastEvent"))
+                .bigText("Режим: AlarmManager (низкая нагрузка)\nСеть: ${if (isNetworkConnected) "✓" else "✗"}\nПоследнее: $lastEvent"))
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -305,11 +188,8 @@ class FandomonMonitoringService : Service() {
             Log.e(TAG, "Ошибка отмены network callback", e)
         }
 
-        scheduler.shutdown()
-
-        if (wakeLock.isHeld) {
-            wakeLock.release()
-        }
+        // Отменяем все запланированные алярмы
+        alarmScheduler.cancelAllMonitoring()
 
         logEvent(EventType.FANDOMON_STOPPED, "Сервис мониторинга остановлен")
     }

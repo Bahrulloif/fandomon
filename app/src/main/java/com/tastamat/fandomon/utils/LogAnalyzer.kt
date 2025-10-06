@@ -37,14 +37,15 @@ class LogAnalyzer(private val context: Context) {
     private var restartAttempts = 0
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    // Кеширование regex результатов
-    private val regexCache = ConcurrentHashMap<String, MatchResult?>()
+    // Компилированный regex паттерн (вместо кеширования результатов)
+    private val logPattern = Regex("""(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) \[(\w+)\] ([^:]+): (.*)""")
     private val timestampFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
 
-    // Пакетная обработка БД
+    // Пакетная обработка БД с backpressure
     private val databaseBatch = mutableListOf<LogEntry>()
-    private val batchChannel = Channel<LogEntry>(Channel.UNLIMITED)
+    private val batchChannel = Channel<LogEntry>(capacity = 1000)
     private var lastBatchTime = System.currentTimeMillis()
+    private var isBatchProcessorActive = true
 
     // Throttling
     private val lastProcessTime = AtomicLong(0)
@@ -81,50 +82,69 @@ class LogAnalyzer(private val context: Context) {
 
     /**
      * Запускает пакетный процессор для БД операций
+     * Оптимизирован: добавлена проверка isActive и обработка ошибок
      */
     private fun startBatchProcessor() {
         scope.launch {
-            while (true) {
-                val batch = mutableListOf<LogEntry>()
-                var timeoutReached = false
+            while (isActive && isBatchProcessorActive) {
+                try {
+                    val batch = mutableListOf<LogEntry>()
+                    var timeoutReached = false
 
-                // Собираем пакет
-                while (batch.size < BATCH_SIZE && !timeoutReached) {
-                    val entry = withTimeoutOrNull(BATCH_TIMEOUT) {
-                        batchChannel.receive()
+                    // Собираем пакет
+                    while (batch.size < BATCH_SIZE && !timeoutReached && isActive) {
+                        val entry = withTimeoutOrNull(BATCH_TIMEOUT) {
+                            batchChannel.receive()
+                        }
+
+                        if (entry != null) {
+                            batch.add(entry)
+                        } else {
+                            timeoutReached = true
+                        }
                     }
 
-                    if (entry != null) {
-                        batch.add(entry)
-                    } else {
-                        timeoutReached = true
+                    // Обрабатываем пакет с retry логикой
+                    if (batch.isNotEmpty()) {
+                        processBatchWithRetry(batch)
                     }
-                }
-
-                // Обрабатываем пакет
-                if (batch.isNotEmpty()) {
-                    processBatch(batch)
+                } catch (e: CancellationException) {
+                    Log.d(TAG, "Batch processor отменен")
+                    break
+                } catch (e: Exception) {
+                    Log.e(TAG, "Ошибка в batch processor", e)
+                    delay(1000) // Небольшая задержка перед следующей попыткой
                 }
             }
+            Log.d(TAG, "Batch processor завершен")
         }
     }
 
     /**
-     * Обрабатывает пакет записей
+     * Обрабатывает пакет записей с retry логикой
      */
-    private suspend fun processBatch(batch: List<LogEntry>) {
-        try {
-            // Пакетное сохранение в БД
-            saveBatchToDatabase(batch)
+    private suspend fun processBatchWithRetry(batch: List<LogEntry>) {
+        repeat(3) { attempt ->
+            try {
+                // Пакетное сохранение в БД
+                saveBatchToDatabase(batch)
 
-            // Пакетная отправка по MQTT
-            sendBatchViaMqtt(batch)
+                // Пакетная отправка по MQTT
+                sendBatchViaMqtt(batch)
 
-            // Проверка критических событий
-            batch.forEach { checkForCriticalEvents(it) }
+                // Проверка критических событий
+                batch.forEach { checkForCriticalEvents(it) }
 
-        } catch (e: Exception) {
-            Log.e(TAG, "Ошибка обработки пакета логов", e)
+                return // Успешно обработано
+            } catch (e: Exception) {
+                Log.e(TAG, "Ошибка обработки пакета логов (попытка ${attempt + 1})", e)
+                if (attempt == 2) {
+                    // Последняя попытка не удалась
+                    Log.e(TAG, "Пакет из ${batch.size} записей потерян после 3 попыток")
+                } else {
+                    delay(1000 * (attempt + 1)) // Экспоненциальная задержка
+                }
+            }
         }
     }
 
@@ -144,15 +164,13 @@ class LogAnalyzer(private val context: Context) {
     }
 
     /**
-     * Парсит строку лога с кешированием regex результатов
+     * Парсит строку лога используя компилированный regex
+     * Исправлено: убран memory leak через кеш результатов
      */
     private fun parseLogLine(line: String): LogEntry {
         try {
-            // Используем кеш для regex результатов
-            val match = regexCache.computeIfAbsent(line) { logLine: String ->
-                val pattern = Regex("""(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) \[(\w+)\] ([^:]+): (.*)""")
-                pattern.find(logLine)
-            }
+            // Используем предкомпилированный паттерн
+            val match = logPattern.find(line)
 
             return if (match != null) {
                 val timestamp = parseTimestamp(match.groupValues[1])
@@ -532,21 +550,14 @@ class LogAnalyzer(private val context: Context) {
     }
 
     /**
-     * Очищает кеш regex для экономии памяти
-     */
-    private fun cleanupRegexCache() {
-        if (regexCache.size > 1000) {
-            regexCache.clear()
-        }
-    }
-
-    /**
      * Освобождает ресурсы
+     * Исправлено: корректное завершение batch processor
      */
     fun cleanup() {
+        isBatchProcessorActive = false
         batchChannel.close()
-        regexCache.clear()
         scope.cancel()
+        Log.d(TAG, "LogAnalyzer ресурсы освобождены")
     }
 
     /**
