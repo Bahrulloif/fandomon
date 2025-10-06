@@ -8,6 +8,9 @@ import com.tastamat.fandomon.data.DatabaseHelper
 import com.tastamat.fandomon.data.EventSeverity
 import com.tastamat.fandomon.data.EventType
 import com.tastamat.fandomon.utils.FandomatChecker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class FandomatCommandReceiver : BroadcastReceiver() {
 
@@ -46,38 +49,41 @@ class FandomatCommandReceiver : BroadcastReceiver() {
         val databaseHelper = DatabaseHelper(context)
         val fandomatChecker = FandomatChecker(context)
 
-        try {
-            // Записываем команду в базу
-            databaseHelper.insertEvent(
-                EventType.REMOTE_COMMAND_RECEIVED,
-                "Получена команда перезапуска Fandomat",
-                EventSeverity.INFO
-            )
-
-            // Выполняем перезапуск
-            val success = fandomatChecker.restartFandomat()
-
-            if (success) {
+        // Используем корутину для вызова suspend функции
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Записываем команду в базу
                 databaseHelper.insertEvent(
-                    EventType.REMOTE_COMMAND_EXECUTED,
-                    "Команда перезапуска Fandomat выполнена успешно",
+                    EventType.REMOTE_COMMAND_RECEIVED,
+                    "Получена команда перезапуска Fandomat",
                     EventSeverity.INFO
                 )
-            } else {
+
+                // Выполняем перезапуск (suspend функция)
+                val success = fandomatChecker.restartFandomat()
+
+                if (success) {
+                    databaseHelper.insertEvent(
+                        EventType.REMOTE_COMMAND_EXECUTED,
+                        "Команда перезапуска Fandomat выполнена успешно",
+                        EventSeverity.INFO
+                    )
+                } else {
+                    databaseHelper.insertEvent(
+                        EventType.FANDOMAT_START_FAILED,
+                        "Не удалось выполнить команду перезапуска Fandomat",
+                        EventSeverity.ERROR
+                    )
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Ошибка выполнения команды перезапуска", e)
                 databaseHelper.insertEvent(
-                    EventType.FANDOMAT_START_FAILED,
-                    "Не удалось выполнить команду перезапуска Fandomat",
+                    EventType.FANDOMON_ERROR,
+                    "Ошибка выполнения команды перезапуска: ${e.message}",
                     EventSeverity.ERROR
                 )
             }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Ошибка выполнения команды перезапуска", e)
-            databaseHelper.insertEvent(
-                EventType.FANDOMON_ERROR,
-                "Ошибка выполнения команды перезапуска: ${e.message}",
-                EventSeverity.ERROR
-            )
         }
     }
 
@@ -87,59 +93,62 @@ class FandomatCommandReceiver : BroadcastReceiver() {
         val databaseHelper = DatabaseHelper(context)
         val fandomatChecker = FandomatChecker(context)
 
-        try {
-            // Записываем команду в базу
-            databaseHelper.insertEvent(
-                EventType.REMOTE_COMMAND_RECEIVED,
-                "Получена команда проверки статуса Fandomat",
-                EventSeverity.INFO
-            )
+        // Используем корутину для вызова suspend функций
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Записываем команду в базу
+                databaseHelper.insertEvent(
+                    EventType.REMOTE_COMMAND_RECEIVED,
+                    "Получена команда проверки статуса Fandomat",
+                    EventSeverity.INFO
+                )
 
-            // Проверяем статус
-            val isRunning = fandomatChecker.isFandomatRunning()
-            val processInfo = fandomatChecker.getFandomatProcessInfo()
-            val version = fandomatChecker.getFandomatVersion()
+                // Проверяем статус
+                val isRunning = fandomatChecker.isFandomatRunning()
+                val processInfo = fandomatChecker.getFandomatProcessInfo()
+                val version = fandomatChecker.getFandomatVersion()
 
-            val statusDetails = """
-                Статус: ${if (isRunning) "Запущен" else "Не запущен"}
-                Версия: ${version ?: "Неизвестно"}
-                Процесс: ${processInfo?.toString() ?: "Не найден"}
-            """.trimIndent()
+                val statusDetails = """
+                    Статус: ${if (isRunning) "Запущен" else "Не запущен"}
+                    Версия: ${version ?: "Неизвестно"}
+                    Процесс: ${processInfo?.toString() ?: "Не найден"}
+                """.trimIndent()
 
-            databaseHelper.insertEvent(
-                EventType.REMOTE_COMMAND_EXECUTED,
-                "Проверка статуса Fandomat выполнена",
-                EventSeverity.INFO,
-                statusDetails
-            )
+                databaseHelper.insertEvent(
+                    EventType.REMOTE_COMMAND_EXECUTED,
+                    "Проверка статуса Fandomat выполнена",
+                    EventSeverity.INFO,
+                    statusDetails
+                )
 
-            // Если не запущен, пытаемся запустить
-            if (!isRunning) {
-                Log.w(TAG, "Fandomat не запущен, пытаемся запустить")
-                val startSuccess = fandomatChecker.startFandomat()
+                // Если не запущен, пытаемся запустить (suspend функция)
+                if (!isRunning) {
+                    Log.w(TAG, "Fandomat не запущен, пытаемся запустить")
+                    val startSuccess = fandomatChecker.startFandomat()
 
-                if (startSuccess) {
-                    databaseHelper.insertEvent(
-                        EventType.FANDOMAT_RESTARTED,
-                        "Fandomat автоматически запущен после проверки",
-                        EventSeverity.INFO
-                    )
-                } else {
-                    databaseHelper.insertEvent(
-                        EventType.FANDOMAT_START_FAILED,
-                        "Не удалось запустить Fandomat после проверки",
-                        EventSeverity.ERROR
-                    )
+                    if (startSuccess) {
+                        databaseHelper.insertEvent(
+                            EventType.FANDOMAT_RESTARTED,
+                            "Fandomat автоматически запущен после проверки",
+                            EventSeverity.INFO
+                        )
+                    } else {
+                        databaseHelper.insertEvent(
+                            EventType.FANDOMAT_START_FAILED,
+                            "Не удалось запустить Fandomat после проверки",
+                            EventSeverity.ERROR
+                        )
+                    }
                 }
-            }
 
-        } catch (e: Exception) {
-            Log.e(TAG, "Ошибка выполнения команды проверки", e)
-            databaseHelper.insertEvent(
-                EventType.FANDOMON_ERROR,
-                "Ошибка выполнения команды проверки: ${e.message}",
-                EventSeverity.ERROR
-            )
+            } catch (e: Exception) {
+                Log.e(TAG, "Ошибка выполнения команды проверки", e)
+                databaseHelper.insertEvent(
+                    EventType.FANDOMON_ERROR,
+                    "Ошибка выполнения команды проверки: ${e.message}",
+                    EventSeverity.ERROR
+                )
+            }
         }
     }
 
