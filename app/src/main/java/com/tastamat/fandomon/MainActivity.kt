@@ -2,6 +2,7 @@ package com.tastamat.fandomon
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -21,6 +22,10 @@ import com.tastamat.fandomon.utils.LogAnalyzer
 import com.tastamat.fandomon.utils.FandomatLogMonitor
 
 class MainActivity : AppCompatActivity() {
+
+    companion object {
+        private const val TAG = "MainActivity"
+    }
 
     private lateinit var databaseHelper: DatabaseHelper
     private lateinit var fandomatChecker: FandomatChecker
@@ -45,7 +50,23 @@ class MainActivity : AppCompatActivity() {
 
         initializeComponents()
         setupViews()
+
+        // Автоматически запускаем сервис мониторинга при первом запуске
+        ensureMonitoringServiceStarted()
+
         updateStatus()
+    }
+
+    /**
+     * Убеждаемся что сервис мониторинга запущен
+     */
+    private fun ensureMonitoringServiceStarted() {
+        if (!isServiceRunning(FandomonMonitoringService::class.java)) {
+            Log.i(TAG, "Сервис не запущен, запускаем автоматически")
+            startMonitoringService()
+        } else {
+            Log.d(TAG, "Сервис уже запущен")
+        }
     }
 
     private fun initializeComponents() {
@@ -137,15 +158,16 @@ class MainActivity : AppCompatActivity() {
                 serviceSwitch.isChecked = serviceRunning
 
                 // Статус Fandomat
-                val fandomatRunning = fandomatChecker.isFandomatRunning()
+                val fandomatInstalled = fandomatChecker.isFandomatInstalled()
+                val fandomatRunning = if (fandomatInstalled) fandomatChecker.isFandomatRunning() else false
                 val fandomatVersion = fandomatChecker.getFandomatVersion()
 
-                fandomatStatusText.text = if (fandomatRunning) {
-                    "🟢 Fandomat: Запущен${if (fandomatVersion != null) " (v$fandomatVersion)" else ""}"
-                } else if (!fandomatChecker.isFandomatInstalled()) {
-                    "❌ Fandomat: Не установлен"
-                } else {
-                    "🔴 Fandomat: Не запущен"
+                Log.d(TAG, "Fandomat статус: installed=$fandomatInstalled, running=$fandomatRunning, version=$fandomatVersion")
+
+                fandomatStatusText.text = when {
+                    !fandomatInstalled -> "❌ Fandomat: Не установлен"
+                    fandomatRunning -> "🟢 Fandomat: Запущен${if (fandomatVersion != null) " (v$fandomatVersion)" else ""}"
+                    else -> "🔴 Fandomat: Не запущен (требуется разрешение Usage Stats)"
                 }
 
                 // Статус интернета
