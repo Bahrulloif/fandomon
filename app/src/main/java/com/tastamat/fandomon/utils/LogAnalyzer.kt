@@ -124,7 +124,7 @@ class LogAnalyzer(private val context: Context) {
      * Обрабатывает пакет записей с retry логикой
      */
     private suspend fun processBatchWithRetry(batch: List<LogEntry>) {
-        repeat(3) { attempt ->
+        for (attempt in 0 until 3) {
             try {
                 // Пакетное сохранение в БД
                 saveBatchToDatabase(batch)
@@ -142,7 +142,7 @@ class LogAnalyzer(private val context: Context) {
                     // Последняя попытка не удалась
                     Log.e(TAG, "Пакет из ${batch.size} записей потерян после 3 попыток")
                 } else {
-                    delay(1000 * (attempt + 1)) // Экспоненциальная задержка
+                    delay(1000L * (attempt + 1)) // Экспоненциальная задержка
                 }
             }
         }
