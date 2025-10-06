@@ -2,9 +2,12 @@ package com.tastamat.fandomon
 
 import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.tastamat.fandomon.data.DatabaseHelper
@@ -119,6 +122,12 @@ class MainActivity : AppCompatActivity() {
             openSettingsActivity()
         }
 
+        // Клик на статус Fandomat для запроса разрешения Usage Stats
+        fandomatStatusText.setOnClickListener {
+            if (!fandomatChecker.hasUsageStatsPermission()) {
+                requestUsageStatsPermission()
+            }
+        }
 
         findViewById<Button>(R.id.testConnectionButton).setOnClickListener {
             testConnection()
@@ -318,6 +327,79 @@ class MainActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
+    /**
+     * Запрос разрешения Usage Stats
+     */
+    private fun requestUsageStatsPermission() {
+        // Проверяем, есть ли уже разрешение
+        if (fandomatChecker.hasUsageStatsPermission()) {
+            Toast.makeText(this, "✅ Разрешение Usage Stats уже предоставлено", Toast.LENGTH_SHORT).show()
+            updateStatus()
+            return
+        }
+
+        // Показываем диалог с объяснением
+        AlertDialog.Builder(this)
+            .setTitle("Требуется разрешение Usage Stats")
+            .setMessage(
+                "Для определения статуса приложения Fandomat необходимо разрешение Usage Stats.\n\n" +
+                "Инструкция:\n" +
+                "1. Нажмите 'Открыть настройки'\n" +
+                "2. Найдите 'Fandomon' в списке\n" +
+                "3. Включите переключатель\n" +
+                "4. Вернитесь в приложение"
+            )
+            .setPositiveButton("Открыть настройки") { _, _ ->
+                try {
+                    val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+                    startActivity(intent)
+
+                    Toast.makeText(
+                        this,
+                        "Найдите 'Fandomon' в списке и включите",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Ошибка открытия настроек Usage Stats", e)
+                    Toast.makeText(
+                        this,
+                        "Ошибка открытия настроек. Откройте вручную:\nSettings → Apps → Special app access → Usage access",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+            .setNegativeButton("Отмена", null)
+            .setNeutralButton("Инструкция ADB") { _, _ ->
+                showAdbInstructions()
+            }
+            .show()
+    }
+
+    /**
+     * Показывает инструкцию для ADB
+     */
+    private fun showAdbInstructions() {
+        val adbCommand = "adb shell appops set com.tastamat.fandomon GET_USAGE_STATS allow"
+
+        AlertDialog.Builder(this)
+            .setTitle("Предоставление через ADB")
+            .setMessage(
+                "Если у вас есть доступ к ADB, выполните команду:\n\n" +
+                "$adbCommand\n\n" +
+                "После выполнения команды нажмите 'Проверить'"
+            )
+            .setPositiveButton("Проверить") { _, _ ->
+                if (fandomatChecker.hasUsageStatsPermission()) {
+                    Toast.makeText(this, "✅ Разрешение предоставлено!", Toast.LENGTH_SHORT).show()
+                    updateStatus()
+                } else {
+                    Toast.makeText(this, "❌ Разрешение не найдено", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Закрыть", null)
+            .show()
+    }
+
     private fun isServiceRunning(serviceClass: Class<*>): Boolean {
         val manager = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
         for (service in manager.getRunningServices(Integer.MAX_VALUE)) {
@@ -331,6 +413,32 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateStatus()
+        checkUsageStatsPermission()
+    }
+
+    /**
+     * Проверяет наличие разрешения Usage Stats при запуске
+     */
+    private fun checkUsageStatsPermission() {
+        if (!fandomatChecker.hasUsageStatsPermission()) {
+            Log.w(TAG, "Usage Stats разрешение не предоставлено")
+
+            // Показываем hint только один раз за сессию
+            val prefs = getSharedPreferences("fandomon_prefs", MODE_PRIVATE)
+            val hintShown = prefs.getBoolean("usage_stats_hint_shown", false)
+
+            if (!hintShown) {
+                Toast.makeText(
+                    this,
+                    "💡 Нажмите на статус Fandomat для настройки разрешений",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                prefs.edit().putBoolean("usage_stats_hint_shown", true).apply()
+            }
+        } else {
+            Log.d(TAG, "Usage Stats разрешение предоставлено")
+        }
     }
 
     private fun createTestEvents() {
