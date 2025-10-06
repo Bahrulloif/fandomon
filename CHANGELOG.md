@@ -1,5 +1,20 @@
 # Changelog
 
+## Version 2.0.1 - Compilation Fixes (2025-10-06)
+
+### 🐛 Bug Fixes
+
+**Compilation Errors:**
+- Fixed suspend function calls in FandomatCommandReceiver
+  - Wrapped `startFandomat()` and `restartFandomat()` calls in coroutines
+  - Added `CoroutineScope(Dispatchers.IO).launch` blocks
+- Fixed `repeat` block issue in LogAnalyzer
+  - Changed from `repeat(3)` to `for (attempt in 0 until 3)` for proper suspend support
+
+**Status:** ✅ Project now compiles successfully
+
+---
+
 ## Version 2.0 - AlarmManager Optimization (2025-10-06)
 
 ### 🚀 Major Performance Improvements
